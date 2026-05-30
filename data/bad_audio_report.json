@@ -1,0 +1,24 @@
+{
+  "file_name": "bad_audio.mp3",
+  "duration_seconds": 121.11,
+  "audio_quality": {
+    "silence_ratio": 0.1007,
+    "clipping_detected": true,
+    "avg_volume_db": -16.6
+  },
+  "issues": [
+    "Silence detected at 32.976s–39.423s",
+    "Silence detected at 40.241s–43.195s",
+    "Silence detected at 55.064s–57.86s",
+    "Volume clipping detected with moderate severity",
+    "High noise level detected with dynamic range of 5.5 dB"
+  ],
+  "llm_insights": {
+    "summary": "Kualitas audio bermasalah dengan keheningan yang signifikan, volume clipping, dan tingkat noise yang tinggi. Hal ini dapat mempengaruhi kualitas rekaman deposisi hukum.",
+    "recommended_actions": [
+      "Mengedit audio untuk menghilangkan segmen keheningan yang tidak perlu",
+      "Mengoptimalkan volume audio untuk menghindari clipping",
+      "Menggunakan noise reduction tool untuk mengurangi tingkat noise"
+    ]
+  }
+}
