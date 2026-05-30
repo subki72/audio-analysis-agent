@@ -1,0 +1,47 @@
+[
+  {
+    "file_name": "bad_audio.mp3",
+    "duration_seconds": 121.11,
+    "audio_quality": {
+      "silence_ratio": 0.1007,
+      "clipping_detected": true,
+      "avg_volume_db": -16.6
+    },
+    "issues": [
+      "silence detected at 32.976s–39.423s",
+      "silence detected at 40.241s–43.195s",
+      "silence detected at 55.064s–57.86s",
+      "volume clipping detected with max volume at -0.4 dB",
+      "high noise level with dynamic range of 5.5 dB"
+    ],
+    "llm_insights": {
+      "summary": "Kualitas audio buruk dengan silence yang signifikan, volume clipping, dan noise latar belakang yang tinggi. Dynamic range yang rendah membuat audio terdengar flat.",
+      "recommended_actions": [
+        "Mengedit audio untuk menghilangkan silence yang tidak perlu",
+        "Mengoptimalkan volume audio untuk menghindari clipping",
+        "Menggunakan noise reduction tool untuk mengurangi noise latar belakang"
+      ]
+    }
+  },
+  {
+    "file_name": "moonlight-plaza.mp3",
+    "duration_seconds": 854.532,
+    "audio_quality": {
+      "silence_ratio": 0.0114,
+      "clipping_detected": false,
+      "avg_volume_db": -25.3
+    },
+    "issues": [
+      "silence detected at 34.446s-39.245s",
+      "silence detected at 675.199s-678.009s",
+      "silence detected at 803.154s-805.287s"
+    ],
+    "llm_insights": {
+      "summary": "Kualitas audio file moonlight-plaza.mp3 secara keseluruhan cukup baik, namun terdapat beberapa segmen keheningan yang signifikan. Volume rata-rata sebesar -25.3 dB dan tidak terdapat clipping. Namun, dynamic range yang relatif rendah (14.38 dB) mengindikasikan adanya noise latar belakang.",
+      "recommended_actions": [
+        "Mengedit file audio untuk menghilangkan segmen keheningan yang tidak diinginkan",
+        "Menggunakan noise reduction tool untuk mengurangi noise latar belakang"
+      ]
+    }
+  }
+]

@@ -7,18 +7,18 @@
     "avg_volume_db": -16.6
   },
   "issues": [
-    "Silence detected at 32.976s–39.423s",
-    "Silence detected at 40.241s–43.195s",
-    "Silence detected at 55.064s–57.86s",
-    "Volume clipping detected with moderate severity",
-    "High noise level detected with dynamic range of 5.5 dB"
+    "silence detected at 32.976s–39.423s",
+    "silence detected at 40.241s–43.195s",
+    "silence detected at 55.064s–57.86s",
+    "volume clipping detected with max volume at -0.4 dB",
+    "high noise level with dynamic range of 5.5 dB"
   ],
   "llm_insights": {
-    "summary": "Kualitas audio bermasalah dengan keheningan yang signifikan, volume clipping, dan tingkat noise yang tinggi. Hal ini dapat mempengaruhi kualitas rekaman deposisi hukum.",
+    "summary": "Kualitas audio buruk dengan silence yang signifikan, volume clipping, dan noise latar belakang yang tinggi. Dynamic range yang rendah membuat audio terdengar flat.",
     "recommended_actions": [
-      "Mengedit audio untuk menghilangkan segmen keheningan yang tidak perlu",
+      "Mengedit audio untuk menghilangkan silence yang tidak perlu",
       "Mengoptimalkan volume audio untuk menghindari clipping",
-      "Menggunakan noise reduction tool untuk mengurangi tingkat noise"
+      "Menggunakan noise reduction tool untuk mengurangi noise latar belakang"
     ]
   }
 }

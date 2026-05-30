@@ -7,15 +7,15 @@
     "avg_volume_db": -25.3
   },
   "issues": [
-    "silence detected at 34.446s–39.245s",
-    "silence detected at 675.199s–678.009s",
-    "silence detected at 803.154s–805.287s"
+    "silence detected at 34.446s-39.245s",
+    "silence detected at 675.199s-678.009s",
+    "silence detected at 803.154s-805.287s"
   ],
   "llm_insights": {
-    "summary": "Kualitas audio file moonlight-plaza.mp3 secara keseluruhan cukup baik, namun terdapat beberapa segmen keheningan yang signifikan. Volume rata-rata sebesar -25.3 dB dan tidak terdapat clipping. Namun, dynamic range sebesar 14.38 dB mengindikasikan adanya noise latar belakang.",
+    "summary": "Kualitas audio file moonlight-plaza.mp3 secara keseluruhan cukup baik, namun terdapat beberapa segmen keheningan yang signifikan. Volume rata-rata sebesar -25.3 dB dan tidak terdapat clipping. Namun, dynamic range yang relatif rendah (14.38 dB) mengindikasikan adanya noise latar belakang.",
     "recommended_actions": [
       "Mengedit file audio untuk menghilangkan segmen keheningan yang tidak diinginkan",
-      "Mengoptimalkan volume audio untuk meningkatkan kualitas keseluruhan"
+      "Menggunakan noise reduction tool untuk mengurangi noise latar belakang"
     ]
   }
 }
