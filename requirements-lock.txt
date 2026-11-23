@@ -44,7 +44,7 @@ exceptiongroup==1.3.2 ; python_full_version < '3.11'
     # via
     #   anyio
     #   pytest
-flake8==7.3.0
+flake8==7.4.1
     # via audio-analysis-agent
 groq==0.37.1
     # via audio-analysis-agent
