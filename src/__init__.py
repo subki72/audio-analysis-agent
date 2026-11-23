@@ -1,2 +1,3 @@
-# Paket VoiceScript
-__version__ = "0.1.0"
+"""VoiceScript — Audio Analysis Agent & Transcription Tool package."""
+
+__version__ = "1.0.0"

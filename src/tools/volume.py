@@ -67,6 +67,14 @@ def _parse_volume_metrics(stderr: str) -> tuple[float | None, float | None, dict
     return mean_volume, max_volume, histogram
 
 
+def _run_volume_filter(file_path: str) -> str:
+    """Invoke FFmpeg volumedetect and return captured stderr output."""
+    ffmpeg = find_ffmpeg()
+    cmd = [ffmpeg, "-i", file_path, "-af", "volumedetect", "-f", "null", "-"]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_VOLUME_TIMEOUT_SECONDS)
+    return result.stderr
+
+
 @register_tool
 def detect_clipping(
     file_path: str,
@@ -81,33 +89,22 @@ def detect_clipping(
         low_volume_threshold_db: Mean volume < ini dianggap terlalu rendah (default: -35.0 dB).
 
     Returns:
-        Dictionary dengan kunci: mean_volume_db, max_volume_db, volume_clipping,
-        clipping_severity, low_volume_detected, histogram.
+        Dictionary metrik volume, status clipping, severity, dan histogram.
     """
     if not os.path.exists(file_path):
         logger.warning("Clipping detection requested for missing file: %s", file_path)
         return {"error": f"File tidak ditemukan: {file_path}"}
 
-    clip_threshold = (
-        clipping_threshold_db if clipping_threshold_db is not None else _CONFIG["clipping_threshold_db"]
-    )
+    clip_threshold = clipping_threshold_db if clipping_threshold_db is not None else _CONFIG["clipping_threshold_db"]
     low_threshold = (
         low_volume_threshold_db if low_volume_threshold_db is not None else _CONFIG["low_volume_threshold_db"]
     )
 
     try:
-        ffmpeg = find_ffmpeg()
-        cmd = [ffmpeg, "-i", file_path, "-af", "volumedetect", "-f", "null", "-"]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=FFMPEG_VOLUME_TIMEOUT_SECONDS,
-        )
-        mean_volume, max_volume, histogram = _parse_volume_metrics(result.stderr)
+        stderr = _run_volume_filter(file_path)
+        mean_volume, max_volume, histogram = _parse_volume_metrics(stderr)
         clipping, severity = _classify_clipping(max_volume, clip_threshold)
         low_volume = mean_volume is not None and mean_volume < low_threshold
-
         logger.info("Analyzed volume for %s (severity=%s, low_volume=%s)", file_path, severity, low_volume)
         return {
             "mean_volume_db": round(mean_volume, 2) if mean_volume is not None else None,

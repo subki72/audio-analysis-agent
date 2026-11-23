@@ -68,13 +68,25 @@ def _parse_silence_segments(stderr: str) -> tuple[list[dict[str, float]], float]
     return segments, total_silence
 
 
+def _run_silence_filter(file_path: str, threshold: str, min_duration: float) -> str:
+    """Invoke FFmpeg silencedetect and return captured stderr output."""
+    ffmpeg = find_ffmpeg()
+    cmd = [
+        ffmpeg, "-i", file_path,
+        "-af", f"silencedetect=noise={threshold}:d={min_duration}",
+        "-f", "null", "-",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_SILENCE_TIMEOUT_SECONDS)
+    return result.stderr
+
+
 @register_tool
 def detect_silence(
     file_path: str,
     noise_threshold: str | None = None,
     min_duration: float | None = None,
 ) -> dict[str, Any]:
-    """Mendeteksi segmen keheningan dalam file audio.
+    """Mendeteksi segmen keheningan dalam file audio menggunakan ffmpeg silencedetect.
 
     Args:
         file_path: Path ke file audio.
@@ -82,38 +94,21 @@ def detect_silence(
         min_duration: Durasi minimum keheningan yang dianggap signifikan (detik).
 
     Returns:
-        Dictionary dengan kunci: silence_detected, silence_segments,
-        total_silence_duration, silence_ratio, audio_duration.
+        Dictionary metrik silence_detected, silence_segments, total_silence_duration,
+        silence_ratio, dan audio_duration.
     """
     if not os.path.exists(file_path):
         logger.warning("Silence detection requested for missing file: %s", file_path)
         return {"error": f"File tidak ditemukan: {file_path}"}
 
-    resolved_threshold = noise_threshold if noise_threshold is not None else _CONFIG["noise_threshold"]
-    resolved_duration = min_duration if min_duration is not None else _CONFIG["min_silence_duration"]
+    threshold = noise_threshold if noise_threshold is not None else _CONFIG["noise_threshold"]
+    duration = min_duration if min_duration is not None else _CONFIG["min_silence_duration"]
 
     try:
-        ffmpeg = find_ffmpeg()
-        cmd = [
-            ffmpeg,
-            "-i",
-            file_path,
-            "-af",
-            f"silencedetect=noise={resolved_threshold}:d={resolved_duration}",
-            "-f",
-            "null",
-            "-",
-        ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=FFMPEG_SILENCE_TIMEOUT_SECONDS,
-        )
-        audio_duration = _parse_audio_duration(result.stderr)
-        segments, total_silence = _parse_silence_segments(result.stderr)
+        stderr = _run_silence_filter(file_path, threshold, duration)
+        audio_duration = _parse_audio_duration(stderr)
+        segments, total_silence = _parse_silence_segments(stderr)
         silence_ratio = round(total_silence / audio_duration, 4) if audio_duration > 0 else 0.0
-
         logger.info("Detected %d silence segments in %s (ratio=%.4f)", len(segments), file_path, silence_ratio)
         return {
             "silence_detected": len(segments) > 0,
@@ -121,8 +116,8 @@ def detect_silence(
             "total_silence_duration": round(total_silence, 3),
             "silence_ratio": silence_ratio,
             "audio_duration": round(audio_duration, 3),
-            "threshold_used": resolved_threshold,
-            "min_duration_used": resolved_duration,
+            "threshold_used": threshold,
+            "min_duration_used": duration,
         }
     except subprocess.TimeoutExpired:
         logger.error("ffmpeg silencedetect timed out after %ds for %s", FFMPEG_SILENCE_TIMEOUT_SECONDS, file_path)
