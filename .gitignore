@@ -1,3 +1,13 @@
+# Environment & Secrets (MANDATORY for secret hygiene)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+id_rsa
+secrets/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -26,8 +36,6 @@ share/python-wheels/
 *.egg
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -35,14 +43,17 @@ share/python-wheels/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage / linter caches
 htmlcov/
 .tox/
-.nosenv/
+.nox/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 .coverage.*
 .cache
+.cache/
 nosetests.xml
 coverage.xml
 *.cover
@@ -52,8 +63,8 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Environments
-.env
+# Virtual Environments
+.venv/
 .venv
 env/
 venv/
@@ -61,9 +72,15 @@ ENV/
 env.bak/
 venv.bak/
 
-# Project specific
-data/transcripts/
-.cache/
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Dokumentasi internal (catatan pribadi, bukan untuk submit)
-docs/
+# Project specific runtime artifacts
+data/transcripts/
+
+# Internal private notes (keep tracked operational runbook)
+docs/*
+!docs/RUNBOOK.md
