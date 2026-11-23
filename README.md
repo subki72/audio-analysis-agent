@@ -1,194 +1,179 @@
+# VoiceScript — Audio Analysis Agent (FFmpeg + Groq LLM)
 
-# VoiceScript - Audio Analysis Agent (ffmpeg + LLM)
+[![CI Pipeline](https://github.com/subki72/audio-analysis-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/subki72/audio-analysis-agent/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![MCP Compatible](https://img.shields.io/badge/MCP-FastMCP-purple.svg)](mcp_server.py)
 
-Sistem bertenaga AI yang menganalisis file audio dan menghasilkan insight terstruktur menggunakan **ffmpeg/ffprobe** untuk analisis teknis dan **Groq LLM** untuk ringkasan cerdas.
+Production-grade AI audio quality inspection service combining **FFmpeg/FFprobe** signal diagnostics, a **ReAct (Reason + Act)** tool-calling agent powered by **Groq LLM**, a **FastMCP** server, and a **Click** CLI for single-file, batch, and Whisper transcription workflows.
 
-## Arsitektur
+## Architecture
 
-Sistem ini menggunakan pola agentic **ReAct (Reason + Act)**. Alih-alih menjalankan skrip yang sudah dikodekan secara tetap, LLM bertindak sebagai orkestrator dinamis yang memutuskan tool ffmpeg mana yang perlu dipanggil dan dalam urutan apa.
+Instead of hardcoding fixed signal-processing pipelines, the orchestrator runs a bounded ReAct loop where the LLM dynamically selects which FFmpeg tools to invoke, collects deterministic metrics, and synthesizes a schema-normalized JSON quality report.
 
-```
-User Command
-    |
-    v
-+------------------+
-|   CLI (click)    |  <-- python -m src.main analyze <file>
-+------------------+
-    |
-    v
-+---------------------------+
-|  AudioAnalysisAgent       |  <-- ReAct Loop (src/agent/orchestrator.py)
-|  (Groq Tool Calling)      |
-|  [dengan cache file MD5]  |
-+---------------------------+
-    |       |       |       |
-    v       v       v       v
-+------+ +------+ +------+ +------+
-|meta  | |silen | |volume| |noise |  <-- ffmpeg/ffprobe tools (src/tools/)
-|data  | |ce    | |detect| |detect|
-|probe | |detect| |      | |astats|
-+------+ +------+ +------+ +------+
-    |       |       |       |
-    v       v       v       v
-+---------------------------+
-|   Sintesis LLM            |  <-- Ringkasan + Rekomendasi + Masalah
-+---------------------------+
-    |
-    v
-+---------------------------+
-|   Laporan JSON            |  <-- Output terstruktur disimpan ke disk
-+---------------------------+
+```text
+CLI (src/main.py) / MCP Client (mcp_server.py)
+            |
+            v
++----------------------------------------+
+|  AppConfig + Path Guards (src/config)  |
+|  Health & Error Boundary (src/health)  |
++----------------------------------------+
+            |
+            v
++----------------------------------------+
+|  AudioAnalysisAgent (orchestrator.py)  |
+|  - Groq Tool Calling + Rate Limiter    |
+|  - SHA-256 Disk Cache (--no-cache)     |
+|  - Deterministic Schema Normalization  |
++----------------------------------------+
+      |         |         |         |
+      v         v         v         v
+  metadata   silence   volume     noise     <-- FFmpeg/FFprobe Tools (src/tools/)
+  (ffprobe) (silencedet)(volumedet)(astats)
+      \         |         |         /
+       v        v         v        v
++----------------------------------------+
+|       Structured JSON Report           |
++----------------------------------------+
 ```
 
-### Keputusan Teknis Utama
+### Key Engineering Decisions
 
-| Keputusan | Alasan |
-|-----------|--------|
-| **Groq API** (bukan OpenAI) | Inferensi sangat cepat (~200ms), tersedia tier gratis, mendukung tool-calling secara native |
-| **llama-3.3-70b-versatile** | Keseimbangan terbaik antara kemampuan reasoning dan kecepatan untuk agent tool-calling di Groq |
-| **ReAct dengan native tool-calling** | LLM secara dinamis memutuskan perintah ffmpeg mana yang dijalankan, bukan hardcode — perilaku agentic sejati |
-| **Post-processing deterministik** | `_normalize_schema()` memastikan output JSON selalu sesuai skema yang diminta, terlepas dari variansi LLM |
-| **Auto-discovery ffmpeg** | `ffmpeg_finder.py` mencari di PATH dan environment conda, sehingga ffmpeg tidak perlu diinstal secara global |
-| **`@register_tool` auto-discovery** | Menambah tool baru cukup membuat fungsi dengan decorator — tanpa perlu update registry manual |
-| **Cache berbasis hash file** | Menghindari pemanggilan ffmpeg + API yang redundan untuk file yang sudah pernah dianalisis. Lewati dengan `--no-cache` |
+| Decision | Rationale |
+|---|---|
+| **Groq API (`llama-3.3-70b-versatile`)** | Low-latency native tool-calling inference with explicit request timeouts and sliding-window rate limiting |
+| **Deterministic post-processing** | `_normalize_schema()` guarantees uniform output structure regardless of LLM formatting variance |
+| **`@register_tool` auto-discovery** | Generates OpenAI/Groq JSON tool schemas automatically from typed function signatures and docstrings |
+| **FFmpeg/FFprobe auto-discovery** | Resolves binaries via `FFMPEG_PATH`/`FFPROBE_PATH`, system `PATH`, and Conda environments |
+| **SHA-256 content caching** | Avoids redundant FFmpeg + LLM calls on unchanged files; bypass with `--no-cache` |
+| **Centralized health & error boundary** | `/health` probe (`check_system_health()`) and `AudioAnalysisErrorHandler` prevent stack-trace leaks |
 
----
+## Project Structure
 
-## Struktur Proyek
-
-```
-VoiceScript/
+```text
+audio-analysis-agent/
+├── .github/
+│   ├── workflows/ci.yml        # Lint, Pytest + FFmpeg coverage, Semgrep SAST, Docker, Trivy
+│   └── dependabot.yml          # Weekly pip, docker, and GitHub Actions security updates
 ├── config/
-│   └── settings.yaml           # Threshold, konfigurasi model, pengaturan output
-├── data/                       # File audio dan laporan yang dihasilkan
-│   ├── bad_audio.mp3
-│   ├── moonlight-plaza.mp3
-│   ├── bad_audio_report.json         # Contoh output (file tunggal)
-│   └── batch_insights_report.json    # Contoh output (batch)
+│   └── settings.yaml           # Thresholds, model defaults, and output settings
+├── data/                       # Sample MP3 fixtures and generated example JSON reports
+├── docs/
+│   └── RUNBOOK.md              # Operational procedures, health checks, and incident playbooks
 ├── src/
-│   ├── main.py                 # Entry point CLI (analyze, analyze-batch, transcribe, info)
-│   ├── agent/
-│   │   └── orchestrator.py     # ReAct agent loop dengan Groq tool calling + cache
-│   ├── tools/
-│   │   ├── registry.py         # Decorator @register_tool & sistem auto-discovery
-│   │   ├── ffmpeg_finder.py    # Auto-discover binary ffmpeg/ffprobe
-│   │   ├── metadata.py         # Tool: get_audio_metadata (ffprobe)
-│   │   ├── silence.py          # Tool: detect_silence (silencedetect)
-│   │   ├── volume.py           # Tool: detect_clipping (volumedetect)
-│   │   └── noise.py            # Tool: detect_noise (astats)
-│   ├── audio/
-│   │   └── processor.py        # Pemotongan audio & konversi format (pydub)
-│   ├── transcription/
-│   │   └── transcriber.py      # Speech-to-text via Groq Whisper API
-│   └── utils/
-│       └── helpers.py          # Pemuat konfigurasi, formatter SRT/VTT
-├── mcp_server.py               # Server MCP (FastMCP) yang mengekspos tools
-├── tests/                      # Unit test
-├── .env.example                # Template untuk API key
-├── environment.yml             # Definisi environment Conda
-├── requirements.txt            # Dependensi pip (alternatif selain Conda)
-└── README.md
+│   ├── config.py               # Pydantic AppConfig, logging setup, and path validation guards
+│   ├── health.py               # /health readiness probe, ErrorHandler, and SimpleRateLimiter
+│   ├── main.py                 # Click CLI (analyze, analyze-batch, transcribe, info, health)
+│   ├── agent/orchestrator.py   # Modular ReAct loop, caching, and schema normalization
+│   ├── tools/                  # @register_tool FFmpeg suite (metadata, silence, volume, noise)
+│   ├── audio/processor.py      # Local pydub metadata, conversion, and chunk splitting
+│   ├── transcription/          # Groq Whisper speech-to-text client
+│   └── utils/helpers.py        # YAML loader and SRT/WebVTT formatters
+├── tests/                      # Offline unit & FFmpeg integration tests (>80% coverage)
+├── mcp_server.py               # FastMCP server exposing 4 audio tools + health_check_tool
+├── Dockerfile                  # Multi-stage non-root (UID 10001) container with FFmpeg + HEALTHCHECK
+├── docker-compose.yml          # Containerized MCP service definition
+├── Makefile                    # Standardized developer automation targets
+├── pyproject.toml              # Project metadata, Ruff linter, and Pytest config
+├── requirements.txt            # Pinned direct dependencies (==)
+├── requirements-lock.txt       # Full pinned dependency lockfile
+├── uv.lock                     # Cross-platform deterministic uv lockfile
+├── SECURITY.md                 # Vulnerability disclosure policy and controls
+├── CONTRIBUTING.md             # Contribution workflow and coding standards
+├── CHANGELOG.md                # Semantic release history
+└── LICENSE                     # MIT License
 ```
 
----
+## Quickstart (Makefile)
 
-## Instalasi & Konfigurasi
+### Prerequisites
 
-### 1. Membuat Environment Conda
+- Python 3.10+
+- `ffmpeg` and `ffprobe` installed (`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` on Debian/Ubuntu)
+- Groq API key from [console.groq.com/keys](https://console.groq.com/keys)
+
+### Local Setup
+
+```bash
+# 1. Install pinned dependencies
+make install
+
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env and set GROQ_API_KEY
+
+# 3. Verify system readiness (FFmpeg, FFprobe, and configuration)
+make health
+
+# 4. Run linter and automated tests
+make lint
+make test-cov
+```
+
+Alternative Conda environment setup:
 
 ```bash
 conda env create -f environment.yml
 conda activate voicescript
 ```
 
-### Alternatif: Instalasi via pip (tanpa Conda)
+## Usage
 
-Jika tidak menggunakan Conda, instal dependensi via pip:
-
-```bash
-pip install -r requirements.txt
-```
-
-> **Catatan:** ffmpeg tetap harus diinstal terpisah di sistem operasi.
->
-> - **Windows:** `winget install ffmpeg` atau unduh dari [ffmpeg.org](https://ffmpeg.org/download.html)
-> - **macOS:** `brew install ffmpeg`
-> - **Linux:** `sudo apt install ffmpeg`
-
-### 2. Konfigurasi API Key
+### CLI Commands
 
 ```bash
-copy .env.example .env
-```
-
-Edit `.env` dan masukkan API key Groq Anda:
-
-```env
-GROQ_API_KEY=gsk_your_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-```
-
----
-
-## Penggunaan
-
-### Analisis Satu File Audio
-
-```bash
+# Analyze a single audio file (writes <filename>_report.json)
 python -m src.main analyze data/bad_audio.mp3
-```
 
-Tambahkan `--verbose` untuk melihat langkah-langkah reasoning agent:
+# Verbose reasoning logs and cache bypass
+python -m src.main analyze data/bad_audio.mp3 --verbose --no-cache
 
-```bash
-python -m src.main analyze data/bad_audio.mp3 --verbose
-```
-
-Output disimpan sebagai `<filename>_report.json` di direktori yang sama dengan file input.
-
-Lewati cache dan paksa analisis ulang:
-
-```bash
-python -m src.main analyze data/bad_audio.mp3 --no-cache
-```
-
-Agent menyimpan cache hasil berdasarkan konten file (SHA-256 hash). Gunakan `--no-cache` untuk memaksa analisis ulang meskipun cache sudah ada.
-
-### Analisis Batch (Banyak File)
-
-```bash
+# Batch-analyze all supported audio files in a directory (writes batch_insights_report.json)
 python -m src.main analyze-batch data/
-```
 
-Memproses semua file audio dalam direktori. Menghasilkan:
-- Laporan individual `<filename>_report.json` per file
-- Laporan master `batch_insights_report.json` berisi semua hasil
+# Transcribe audio via Groq Whisper (formats: txt, srt, vtt, json)
+python -m src.main transcribe data/bad_audio.mp3 --output-format srt --language id
 
-### Transkripsi Audio ke Teks
-
-```bash
-python -m src.main transcribe data/bad_audio.mp3 --output-format txt --language id
-```
-
-Format output yang didukung: `txt`, `srt`, `vtt`, `json`
-
-### Informasi Detail File Audio
-
-```bash
+# Inspect local file metadata
 python -m src.main info data/bad_audio.mp3
+
+# Run readiness health check
+python -m src.main health
 ```
 
----
+### MCP Server (FastMCP)
 
-## Skema JSON Output
+Start the Model Context Protocol server locally or via Makefile:
 
-Setiap laporan analisis mengikuti struktur yang sama persis:
+```bash
+make run-mcp
+# or: python mcp_server.py
+```
+
+Exposed MCP tools:
+
+- `get_audio_metadata_tool(file_path)` — Format, duration, sample rate, channels, codec, and bitrate via `ffprobe`
+- `detect_silence_tool(file_path)` — Silent segments, total silence duration, and silence ratio via `silencedetect`
+- `detect_clipping_tool(file_path)` — Mean/max volume, clipping flag, severity, and histogram via `volumedetect`
+- `detect_noise_tool(file_path)` — RMS/peak levels, dynamic range, crest factor, and noise classification via `astats`
+- `health_check_tool()` — Readiness probe verifying FFmpeg, FFprobe, and validated runtime configuration (`/health` contract)
+
+### Docker Deployment
+
+Build and run the hardened non-root container (includes FFmpeg and built-in `HEALTHCHECK`):
+
+```bash
+make docker-build
+make docker-up
+```
+
+## Output Report Schema
 
 ```json
 {
   "file_name": "bad_audio.mp3",
-  "duration_seconds": 121.107625,
+  "duration_seconds": 121.11,
   "audio_quality": {
     "silence_ratio": 0.1007,
     "clipping_detected": true,
@@ -199,40 +184,21 @@ Setiap laporan analisis mengikuti struktur yang sama persis:
     "Audio clipping detected (max volume: -0.4 dB)"
   ],
   "llm_insights": {
-    "summary": "Kualitas audio buruk karena adanya segmen keheningan...",
+    "summary": "Kualitas audio buruk karena segmen keheningan panjang dan distorsi clipping.",
     "recommended_actions": [
-      "Menggunakan limiter atau menurunkan gain input",
-      "Melakukan trimming otomatis"
+      "Terapkan limiter atau turunkan gain input",
+      "Lakukan trimming otomatis pada segmen hening"
     ]
   }
 }
 ```
 
----
+Sample outputs are committed in `data/bad_audio_report.json`, `data/moonlight-plaza_report.json`, and `data/batch_insights_report.json`.
 
-## Server MCP
+## Security and Governance
 
-Proyek ini mengekspos tools analisisnya melalui server **Model Context Protocol (MCP)** menggunakan FastMCP:
-
-```bash
-python mcp_server.py
-```
-
-Tools yang tersedia:
-- `get_audio_metadata` — Ekstrak durasi, bitrate, sample rate, channels via ffprobe
-- `detect_silence` — Deteksi segmen keheningan via ffmpeg silencedetect
-- `detect_clipping` — Ukur level volume dan deteksi clipping via ffmpeg volumedetect
-- `detect_noise` — Analisis level noise dan dynamic range via ffmpeg astats
-
-> 💡 **Melampaui Requirement:** Assessment membutuhkan 3 tool MCP. Proyek ini mengekspos 4 — `detect_noise` (ffmpeg astats) ditambahkan untuk menyediakan analisis dynamic range dan noise floor, memungkinkan penilaian kualitas audio yang lebih mendalam.
-
----
-
-## Contoh Output
-
-Contoh laporan yang sudah di-generate tersedia di direktori `data/`:
-
-- [`bad_audio_report.json`](data/bad_audio_report.json) — Analisis file tunggal
-- [`moonlight-plaza_report.json`](data/moonlight-plaza_report.json) — Analisis file tunggal
-- [`batch_insights_report.json`](data/batch_insights_report.json) — Analisis batch (2 file)
-- [`example_verbose_trace.txt`](data/example_verbose_trace.txt) — Trace reasoning agent (mode `--verbose`)
+- **Security Policy**: See [SECURITY.md](SECURITY.md) for private vulnerability reporting and defense-in-depth controls (Semgrep SAST, Trivy image scanning, Dependabot).
+- **Operations**: See [docs/RUNBOOK.md](docs/RUNBOOK.md) for health checks, environment variables, and incident response playbooks.
+- **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards and PR requirements.
+- **Release History**: See [CHANGELOG.md](CHANGELOG.md).
+- **License**: Released under the [MIT License](LICENSE).
