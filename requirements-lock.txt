@@ -113,7 +113,7 @@ pygments==2.21.0
     #   rich
 pyjwt==2.15.1
     # via mcp
-pytest==9.0.3
+pytest==9.2.0
     # via
     #   audio-analysis-agent
     #   pytest-cov
