@@ -1,8 +1,13 @@
+"""Pytest session configuration for VoiceScript test suite."""
+
+from __future__ import annotations
+
+from typing import Any
 import warnings
 
 
-def pytest_configure(config):
-    """Menyembunyikan RuntimeWarning dari pydub tentang ffmpeg yang tidak ditemukan."""
+def pytest_configure(config: Any) -> None:
+    """Suppress noisy pydub RuntimeWarnings when FFmpeg is absent from PATH."""
     warnings.filterwarnings(
         "ignore",
         message="Couldn't find ffmpeg or avconv",

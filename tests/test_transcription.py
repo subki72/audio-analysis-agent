@@ -1,53 +1,40 @@
-import pytest
+"""Unit tests for Transcriber initialization and model configuration."""
+
+from __future__ import annotations
+
+import os
 from unittest.mock import patch
+
 from src.transcription.transcriber import Transcriber
 
 
-def test_transcriber_no_api_key():
-    """Transcriber harus bisa diinisialisasi tanpa API key (client = None).
-    
-    Ketika GROQ_API_KEY tidak ada di environment, Transcriber tetap
-    terbentuk tapi `client` harus None agar tidak crash saat import.
-    """
-    with patch.dict('os.environ', {}, clear=True):
-        import os
-        os.environ.pop('GROQ_API_KEY', None)
+def test_transcriber_no_api_key() -> None:
+    """Transcriber initializes with client=None when GROQ_API_KEY is absent."""
+    with patch.dict("os.environ", {}, clear=True):
+        os.environ.pop("GROQ_API_KEY", None)
         transcriber = Transcriber(settings={})
         assert transcriber.api_key is None
         assert transcriber.client is None
 
 
-def test_transcriber_with_api_key():
-    """Transcriber harus membuat Groq client jika API key tersedia.
-    
-    Ketika GROQ_API_KEY di-set di environment, Transcriber harus:
-    - Menyimpan api_key dari env var
-    - Membuat Groq client (bukan None)
-    """
-    with patch.dict('os.environ', {'GROQ_API_KEY': 'gsk_test_key_123'}):
+def test_transcriber_with_api_key() -> None:
+    """Transcriber builds a Groq client when GROQ_API_KEY is set."""
+    with patch.dict("os.environ", {"GROQ_API_KEY": "test_token_placeholder"}):
         transcriber = Transcriber(settings={})
-        assert transcriber.api_key == 'gsk_test_key_123'
+        assert transcriber.api_key == "test_token_placeholder"
         assert transcriber.client is not None
 
 
-def test_transcriber_default_model():
-    """Model default harus whisper-large-v3 jika tidak dikonfigurasi.
-    
-    Jika settings dict kosong dan GROQ_MODEL env var tidak ada,
-    fallback ke 'whisper-large-v3'.
-    """
-    with patch.dict('os.environ', {'GROQ_API_KEY': 'gsk_test_key_123'}, clear=True):
+def test_transcriber_default_model() -> None:
+    """Transcriber defaults to whisper-large-v3 when no model override is set."""
+    with patch.dict("os.environ", {"GROQ_API_KEY": "test_token_placeholder"}, clear=True):
         transcriber = Transcriber(settings={})
-        assert transcriber.model == 'whisper-large-v3'
+        assert transcriber.model == "whisper-large-v3"
 
 
-def test_transcriber_model_from_settings():
-    """Model harus bisa dikonfigurasi lewat settings dict.
-    
-    Jika settings['api']['model'] di-set, itu harus diprioritaskan
-    di atas default 'whisper-large-v3'.
-    """
-    with patch.dict('os.environ', {'GROQ_API_KEY': 'gsk_test_key_123'}):
-        settings = {'api': {'model': 'whisper-large-v3-turbo'}}
+def test_transcriber_model_from_settings() -> None:
+    """Transcriber prioritizes model configured in settings['api']['model']."""
+    with patch.dict("os.environ", {"GROQ_API_KEY": "test_token_placeholder"}):
+        settings = {"api": {"model": "whisper-large-v3-turbo"}}
         transcriber = Transcriber(settings=settings)
-        assert transcriber.model == 'whisper-large-v3-turbo'
+        assert transcriber.model == "whisper-large-v3-turbo"
