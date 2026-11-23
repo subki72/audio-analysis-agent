@@ -7,8 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
 
 from src.audio.processor import AudioProcessor
 from src.main import cli

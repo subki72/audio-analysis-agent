@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections import deque
-from datetime import datetime, timezone
 import logging
 import platform
 import subprocess
 import time
+from collections import deque
+from datetime import datetime, timezone
 from typing import Any, Callable, TypeVar
 
 from src.config import AppConfig

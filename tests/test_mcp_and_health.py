@@ -9,8 +9,8 @@ import pytest
 
 import mcp_server
 from src.config import (
-    AppConfig,
     SUPPORTED_AUDIO_EXTENSIONS,
+    AppConfig,
     normalize_groq_base_url,
     validate_audio_file_path,
 )
